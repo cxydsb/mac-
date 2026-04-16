@@ -1,0 +1,53 @@
+name: Build MacOS App
+
+on:
+  push:
+    branches: [ "main", "master" ] 
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest # 召唤云端 Mac
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Download Mac FFmpeg
+      run: |
+        # 1. 创建一个临时的 ffmpeg 文件夹
+        mkdir ffmpeg
+        # 2. 从官方静态源下载 Mac 版的 ffmpeg 压缩包
+        curl -L -o ffmpeg-mac.zip https://evermeet.cx/ffmpeg/getrelease/zip
+        # 3. 解压压缩包
+        unzip ffmpeg-mac.zip -d ffmpeg
+        # 4. 删除没用的压缩包
+        rm ffmpeg-mac.zip
+        # 5. 确保下载下来的 ffmpeg 有执行权限
+        chmod +x ffmpeg/ffmpeg
+
+    - name: Run PyInstaller
+      run: |
+        # 执行 Mac 打包命令，把刚才下载并解压好的 ffmpeg 塞进去
+        pyinstaller --windowed --noconfirm --name "PromptBrowsertool" --add-data "ffmpeg/ffmpeg:ffmpeg" "Prompt Browsertool.py"
+
+    - name: Zip App
+      run: |
+        cd dist
+        zip -r ../PromptBrowsertool_Mac.zip PromptBrowsertool.app
+
+    - name: Upload Result
+      uses: actions/upload-artifact@v3
+      with:
+        name: MacOS_Executable
+        path: PromptBrowsertool_Mac.zip
